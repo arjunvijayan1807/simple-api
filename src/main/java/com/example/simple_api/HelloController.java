@@ -11,4 +11,8 @@ public class HelloController {
     public String sayHello() {
         return "Hello, World!";
     }
+    @GetMapping("/new-endpoint")
+    public String newEndpoint() {
+        return "This is a new endpoint!";
+    }
 }
