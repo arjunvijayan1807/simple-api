@@ -1,0 +1,52 @@
+name: Non Prod CI/CD Pipeline
+on:
+  workflow_run:
+    workflows: ['Verify Build']
+    types:
+      - completed
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      releasetag: ${{ steps.release.outputs.new_tag }}
+    steps:
+      - name: Cloning repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag
+        id: tagging
+        run: |
+          git tag v1.0.${{ github.run_number }}
+          git push origin v1.0.${{ github.run_number }}
+          echo "new_tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Reformat tag
+        id: release
+        run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cloning repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.create-release.outputs.releasetag }}
+
+      - name: Setup Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'maven'
+
+      - name: Build JAR file
+        run: mvn -Dmaven.test.skip=true clean package
