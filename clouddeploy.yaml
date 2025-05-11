@@ -1,0 +1,17 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: simple-api-pipeline
+description: Delivery pipeline for simple-api
+serialPipeline:
+  stages:
+    - targetId: dev
+      profiles: []
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: dev
+description: Development environment
+gke:
+  cluster: projects/third-diorama-459405-q0/locations/northamerica-northeast1/clusters/simple-api-cluster

@@ -1,17 +1,17 @@
 name: Non Prod CI/CD Pipeline
 on:
-  workflow_run:
-    workflows: ['Verify Build']
-    types:
-      - completed
-    branches:
-      - 'main'
+  push:
+    branches: [ main ]
   workflow_dispatch:
+
+env:
+  PROJECT_ID: third-diorama-459405-q0
+  REGION: northamerica-northeast1
+  DELIVERY_PIPELINE_NAME: simple-api-pipeline
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     outputs:
       releasetag: ${{ steps.release.outputs.new_tag }}
     steps:
@@ -31,9 +31,12 @@ jobs:
         id: release
         run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
 
-  build-and-test:
+  cloudDeploy:
     needs: create-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
     steps:
       - name: Cloning repo
         uses: actions/checkout@v4
@@ -41,12 +44,28 @@ jobs:
           fetch-depth: 0
           ref: refs/tags/${{ needs.create-release.outputs.releasetag }}
 
-      - name: Setup Maven
-        uses: actions/setup-java@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          distribution: 'temurin'
-          java-version: 17
-          cache: 'maven'
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
 
-      - name: Build JAR file
-        run: mvn -Dmaven.test.skip=true clean package
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker
+        run: gcloud --quiet auth configure-docker northamerica-northeast1-docker.pkg.dev
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} .
+          docker push northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }}
+
+      - name: Create Cloud Deploy release
+        run: |
+          gcloud deploy releases create release-${{ needs.create-release.outputs.releasetag }} \
+            --delivery-pipeline=${{ env.DELIVERY_PIPELINE_NAME }} \
+            --region=${{ env.REGION }} \
+            --images=simple-api=northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} \
+            --to-target=dev
