@@ -52,6 +52,11 @@ jobs:
           fetch-depth: 0
           ref: refs/tags/${{needs.create-release.outputs.repotag}}
 
+      - name: Debug directory structure
+        run: |
+          pwd
+          ls -R
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
