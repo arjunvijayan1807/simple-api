@@ -3,14 +3,14 @@ kind: Config
 build:
   artifacts:
     - image: northamerica-northeast1-docker.pkg.dev/third-diorama-459405-q0/simple-api-repo/simple-api
-      context: .
+      context: ..
       docker:
         dockerfile: Dockerfile
   tagPolicy:
     gitCommit: {}
 manifests:
   rawYaml:
-    - k8s/deployment.yaml
-    - k8s/service.yaml
+    - deployment.yaml
+    - service.yaml
 deploy:
   kubectl: {}

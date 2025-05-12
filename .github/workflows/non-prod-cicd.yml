@@ -92,7 +92,7 @@ jobs:
             --region=${{ env.REGION }} \
             --images=simple-api=northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} \
             --to-target=dev \
-            --skaffold-file=./skaffold.yaml
+            --source=./k8s
 
   devsmoketest:
     uses: ./.github/workflows/reusable-automation-test-workflow.yml
