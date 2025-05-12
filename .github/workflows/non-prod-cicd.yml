@@ -1,7 +1,11 @@
 name: Non Prod CI/CD Pipeline
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ['Verify Build']
+    types:
+      - completed
+    branches:
+      - 'main'
   workflow_dispatch:
 
 env:
@@ -12,8 +16,10 @@ env:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     outputs:
       releasetag: ${{ steps.release.outputs.new_tag }}
+      repotag: ${{ steps.tagging.outputs.new_tag }}
     steps:
       - name: Cloning repo
         uses: actions/checkout@v4
@@ -42,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ needs.create-release.outputs.releasetag }}
+          ref: refs/tags/${{needs.create-release.outputs.repotag}}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -53,19 +59,60 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+          install_components: "skaffold"
 
       - name: Configure Docker
         run: gcloud --quiet auth configure-docker northamerica-northeast1-docker.pkg.dev
 
-      - name: Build and push Docker image
+      - name: Skaffold Build
         run: |
-          docker build -t northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} .
-          docker push northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }}
+          skaffold build --file-output artifacts.json --tag ${{ needs.create-release.outputs.releasetag }}
 
-      - name: Create Cloud Deploy release
+      - name: Create Cloud Deploy Release
         run: |
           gcloud deploy releases create release-${{ needs.create-release.outputs.releasetag }} \
             --delivery-pipeline=${{ env.DELIVERY_PIPELINE_NAME }} \
             --region=${{ env.REGION }} \
-            --images=simple-api=northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} \
-            --to-target=dev
+            --build-artifacts=artifacts.json \
+            --to-target=dev \
+            --skaffold-file=skaffold.yaml
+
+  devsmoketest:
+    uses: ./.github/workflows/reusable-automation-test-workflow.yml
+    name: Dev Smoke Test
+    needs: [create-release, cloudDeploy]
+    with:
+      repotag: ${{needs.create-release.outputs.repotag}}
+      target: '@simple-api'
+      downstream: dev
+
+  finalstatus:
+    name: Success Status Notification
+    needs: [create-release, cloudDeploy, devsmoketest]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack for Dev Smoke Test Failure
+        if: ${{ needs.devsmoketest.outputs.passtest == 'false' }}
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: "failure"
+          notification_title: '*{workflow}* failed deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
+          message_format: 'Failed dev smoke test of release <https://console.cloud.google.com/deploy/delivery-pipelines/${{env.REGION}}/${{env.DELIVERY_PIPELINE_NAME}}/releases/${{env.RELEASE}}/rollouts?${{env.PROJECT_ID}}=&project=${{env.PROJECT_ID}}|${{env.TAG}}>'
+          footer: '<{run_url}|View Run>'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TAG: ${{needs.create-release.outputs.repotag}}
+          TARGET: dev
+          RELEASE: release-${{ needs.create-release.outputs.releasetag }}
+
+      - name: Notify Slack for CI/CD Completion
+        if: success()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notification_title: '*{workflow}* successful deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
+          message_format: 'Successful deployment of release <https://console.cloud.google.com/deploy/delivery-pipelines/${{env.REGION}}/${{env.DELIVERY_PIPELINE_NAME}}/releases/release-${{env.RELEASE}}/rollouts?${{env.PROJECT_ID}}=&project=${{env.PROJECT_ID}}|${{env.RELEASE}}>'
+          footer: '<{run_url}|View Run>'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE: "${{needs.create-release.outputs.releasetag}}"

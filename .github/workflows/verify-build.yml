@@ -4,7 +4,10 @@ on:
     branches: [ main ]
     paths:
       - 'src/**'
+      - 'Dockerfile'
       - 'pom.xml'
+      - 'clouddeploy.yaml'
+      - 'skaffold.yaml'
   workflow_dispatch:
 
 jobs:

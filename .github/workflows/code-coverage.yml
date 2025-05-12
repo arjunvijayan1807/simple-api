@@ -1,15 +1,24 @@
 name: Code Coverage Java
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [ main ]
-    types: [ synchronize, opened, reopened, edited ]
+  pull_request_target:
+    branches:
+      - main
+    types: [synchronize, opened, reopened, edited]
 
 jobs:
   code-coverage:
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout for pull request
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v4
+        with:
+          ref: "refs/pull/${{ github.event.number }}/merge"
+
+      - name: Checkout for non pull request
+        if: ${{ github.event_name != 'pull_request_target' }}
         uses: actions/checkout@v4
 
       - name: Setup Maven
@@ -19,11 +28,39 @@ jobs:
           java-version: 17
           cache: 'maven'
 
-      - name: Build and generate coverage
-        run: mvn clean test
+      - name: Build with Maven and generate coverage
+        run: mvn test
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
           name: jacoco-report
-          path: target/site/jacoco/*
+          path: target/site/jacoco/jacoco.xml
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-report
+          path: target/site
+
+testAutomation:
+  uses: ./.github/workflows/reusable-automation-test-workflow.yml
+  name: Test Automation
+  with:
+    target: '@simple-api'
+    downstream: dev
+
+test-result-check:
+  name: Test Result Check
+  needs: [testAutomation, code-coverage]
+  if: always()
+  runs-on: ubuntu-latest
+  steps:
+    - name: Check test result for API
+      run: |
+        echo "${{needs.testAutomation.outputs.passtest}}"
+        if [[ "${{needs.testAutomation.outputs.passtest}}" == "true" ]]; then
+          exit 0
+        else
+          exit 1
+        fi

@@ -1,0 +1,32 @@
+name: Sonar Scan
+on: [workflow_dispatch]
+
+jobs:
+  build-sonar-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: Setup Java JDK
+        if: steps.changes.outputs.src == 'true'
+        uses: actions/setup-java@v2.3.1
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'maven'
+
+      - name: Build and Sonar scan
+        if: steps.changes.outputs.src == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONARQUBE_GCP_TOKEN }}
+        run: mvn -B clean package

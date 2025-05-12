@@ -1,0 +1,85 @@
+name: Reusable Automation Test Workflow
+
+on:
+  workflow_call:
+    inputs:
+      repotag:
+        required: false
+        type: string
+      target:
+        required: true
+        type: string
+      downstream:
+        required: true
+        type: string
+    outputs:
+      passtest:
+        description: "Test result"
+        value: ${{ jobs.test_job.outputs.passtest }}
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'test suite tag name'
+        required: true
+        default: '@simple-api'
+        type: string
+      downstream:
+        description: 'downstream env'
+        required: true
+        default: 'dev'
+        type: string
+
+env:
+  PROJECT_ID: third-diorama-459405-q0
+  REGION: northamerica-northeast1
+
+jobs:
+  test_job:
+    name: Test Job
+    runs-on: ubuntu-latest
+    outputs:
+      passtest: ${{ steps.passtest.outputs.result }}
+    steps:
+      - name: "Cloning repo from tag"
+        if: ${{ inputs.repotag != '' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{inputs.repotag}}
+
+      - name: "Cloning repo from head"
+        if: ${{ inputs.repotag == '' }}
+        uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google using Credentials
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Run smoke test
+        id: smoke-test
+        run: |
+          EXTERNAL_IP=$(kubectl get services simple-api-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://$EXTERNAL_IP/new-endpoint)
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Smoke test passed"
+            echo "result=true" >> $GITHUB_OUTPUT
+          else
+            echo "Smoke test failed"
+            echo "result=false" >> $GITHUB_OUTPUT
+          fi
+
+      - id: passtest
+        name: Set test result
+        run: echo "result=${{ steps.smoke-test.outputs.result }}" >> $GITHUB_OUTPUT

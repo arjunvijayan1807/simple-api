@@ -1,0 +1,106 @@
+deploy-to-env:
+  name: Deploy to Dev
+  runs-on: ubuntu-latest
+  needs: [get-release-name]
+  permissions:
+    contents: "write"
+    id-token: "write"
+  steps:
+    - name: Cloning repo
+      uses: actions/checkout@v3
+
+    - id: auth
+      name: Authenticate to Google using Credentials
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+        install_components: "skaffold"
+
+    - name: Check if release exists
+      run: |
+        if gcloud deploy releases describe ${{env.RELEASE_NAME}} --delivery-pipeline=${{env.DELIVERY_PIPELINE_NAME}} --region=${{env.REGION}} --no-user-output-enabled; then
+          echo "Release found!"
+        else
+          echo "Release not found! Exiting workflow..."
+          exit 1
+        fi
+      env:
+        RELEASE_NAME: ${{ needs.get-release-name.outputs.release }}
+
+    - name: Notify Slack Start
+      if: always()
+      uses: ravsamhq/notify-slack-action@v1
+      with:
+        status: ${{ job.status }}
+        notification_title: '*{workflow}* for github repo <{repo_url}|{repo}> has been triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
+        message_format: '*{workflow}* testing deployment of release ${{ needs.get-release-name.outputs.release }}'
+        footer: '<{run_url}|View Run>'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - id: release-rollout-id
+      name: Get Rollout Id
+      run: |
+        response=$(curl 'https://clouddeploy.googleapis.com/v1/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/deliveryPipelines/${{ env.DELIVERY_PIPELINE_NAME }}/releases/${{ needs.get-release-name.outputs.release }}/rollouts?filter=${{ needs.get-release-name.outputs.release }}-to-dev' \
+          --header 'Authorization: Bearer ${{ steps.auth.outputs.access_token }}' \
+          --header 'Accept: application/json' \
+          --header 'Content-Type: application/json' \
+          --compressed | jq -r 'try .rollouts | sort_by(.name) | last.name | match(".*\/(.+)") | .captures[0].string')
+        echo "id=$response" >> $GITHUB_OUTPUT
+        echo "$response"
+
+    - id: next-rollout-id
+      run: |
+        if [ "${{steps.release-rollout-id.outputs.id}}" != "" ]; then
+          export x=${{steps.release-rollout-id.outputs.id}};
+          export x=$(echo $(echo $x | cut -f1-6 -d-)-$(echo $x | cut -f7 -d- | nawk -F, '{for(i=1;i<=NF;i++){s="0000"$i+1;print substr(s,length(s)-length($i)+1)}}'));
+        else
+          export x=${{ needs.get-release-name.outputs.release }}-to-dev-0001;
+        fi
+        echo "id=$x" >> $GITHUB_OUTPUT
+
+    - id: production-rollout
+      name: Update Rollout
+      run: |
+        curl --request POST \
+          'https://clouddeploy.googleapis.com/v1/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/deliveryPipelines/${{ env.DELIVERY_PIPELINE_NAME }}/releases/${{ needs.get-release-name.outputs.release }}/rollouts?rolloutId=${{steps.next-rollout-id.outputs.id}}' \
+          --header 'Authorization: Bearer ${{ steps.auth.outputs.access_token }}' \
+          --header 'Accept: application/json' \
+          --header 'Content-Type: application/json' \
+          --data '{"description":"Manual deployment via Lab CRQ","targetId":"dev"}' \
+          --compressed
+
+    - name: Check Promotion Status
+      uses: google-github-actions/get-cloud-deploy-rollout-status@v1
+      with:
+        delivery_pipeline: ${{ env.DELIVERY_PIPELINE_NAME }}
+        release_name: ${{ needs.get-release-name.outputs.release }}
+        target_id: dev
+
+    - name: Notify Slack Success
+      if: success()
+      uses: ravsamhq/notify-slack-action@v1
+      with:
+        status: ${{ job.status }}
+        notification_title: '*{workflow}* successful deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
+        message_format: 'Successful deployment of release <https://console.cloud.google.com/deploy/delivery-pipelines/${{env.REGION}}/${{env.DELIVERY_PIPELINE_NAME}}/releases/${{ needs.get-release-name.outputs.release }}/rollouts?${{env.PROJECT_ID}}=&project=${{env.PROJECT_ID}}|${{ needs.get-release-name.outputs.release }}>'
+        footer: '<{run_url}|View Run>'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify Slack Fail
+      if: failure()
+      uses: ravsamhq/notify-slack-action@v1
+      with:
+        status: ${{ job.status }}
+        notification_title: '*{workflow}* failed deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
+        message_format: 'Failed deployment of release ${{ needs.get-release-name.outputs.release }}>'
+        footer: '<{run_url}|View Run>'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
