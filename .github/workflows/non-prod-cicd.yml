@@ -37,7 +37,9 @@ jobs:
 
       - name: Reformat tag
         id: release
-        run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
+        run: |
+          formatted_tag=$(echo "release-v1-0-${{ github.run_number }}" | tr '[:upper:]' '[:lower:]' | tr '.' '-' | head -c 63)
+          echo "new_tag=$formatted_tag" >> $GITHUB_OUTPUT
 
   cloudDeploy:
     needs: create-release
