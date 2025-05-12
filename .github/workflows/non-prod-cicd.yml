@@ -29,17 +29,18 @@ jobs:
           fetch-depth: 0
 
       - name: Create tag
-      - id: tagging
-      - run: |
-      - git tag v1-0-${{ github.run_number }}
-      - git push origin v1-0-${{ github.run_number }}
-      - echo "new_tag=v1-0-${{ github.run_number }}" >> $GITHUB_OUTPUT
+        id: tagging
+        run: |
+          git tag v1-0-${{ github.run_number }}
+          git push origin v1-0-${{ github.run_number }}
+          echo "new_tag=v1-0-${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Reformat tag
         id: release
         run: |
-          sanitized_tag=$(echo "${{ steps.tagging.outputs.new_tag }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
-          echo "new_tag=${sanitized_tag}" >> $GITHUB_OUTPUT
+          sanitized_tag=$(echo "release-${{ steps.tagging.outputs.new_tag }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')
+          echo "Sanitized release tag: $sanitized_tag"
+          echo "new_tag=$sanitized_tag" >> $GITHUB_OUTPUT
 
       - name: Debug outputs
         run: |
