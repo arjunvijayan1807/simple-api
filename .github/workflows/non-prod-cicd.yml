@@ -37,7 +37,9 @@ jobs:
 
       - name: Reformat tag
         id: release
-        run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
+        run: |
+          formatted_tag=$(echo "release-v1-0-${{ github.run_number }}" | tr '[:upper:]' '[:lower:]' | head -c 63)
+          echo "new_tag=$formatted_tag" >> $GITHUB_OUTPUT
 
   cloudDeploy:
     needs: create-release
@@ -83,15 +85,15 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} .
-          docker push northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }}
+          docker build -t northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.repotag }} .
+          docker push northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.repotag }}
 
       - name: Create Cloud Deploy Release
         run: |
-          gcloud deploy releases create release-${{ needs.create-release.outputs.releasetag }} \
+          gcloud deploy releases create ${{ needs.create-release.outputs.releasetag }} \
             --delivery-pipeline=${{ env.DELIVERY_PIPELINE_NAME }} \
             --region=${{ env.REGION }} \
-            --images=simple-api=northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.releasetag }} \
+            --images=simple-api=northamerica-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/simple-api-repo/simple-api:${{ needs.create-release.outputs.repotag }} \
             --to-target=dev \
             --source=./k8s
 
