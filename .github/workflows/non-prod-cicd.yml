@@ -66,9 +66,6 @@ jobs:
       - name: Configure Docker
         run: gcloud --quiet auth configure-docker northamerica-northeast1-docker.pkg.dev
 
-      - name: Skaffold Build
-        run: |
-          skaffold build --file-output artifacts.json --tag ${{ needs.create-release.outputs.releasetag }}
 
       - name: Create Cloud Deploy Release
         run: |
@@ -77,7 +74,7 @@ jobs:
             --region=${{ env.REGION }} \
             --build-artifacts=artifacts.json \
             --to-target=dev \
-            --skaffold-file=skaffold.yaml
+    
 
   devsmoketest:
     uses: ./.github/workflows/reusable-automation-test-workflow.yml
