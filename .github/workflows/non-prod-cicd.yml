@@ -39,7 +39,13 @@ jobs:
         id: release
         run: |
           formatted_tag=$(echo "release-v1-0-${{ github.run_number }}" | tr '[:upper:]' '[:lower:]' | tr '.' '-' | head -c 63)
+          echo "Formatted tag: $formatted_tag"
           echo "new_tag=$formatted_tag" >> $GITHUB_OUTPUT
+
+      - name: Debug outputs
+        run: |
+          echo "releasetag: ${{ steps.release.outputs.new_tag }}"
+          echo "repotag: ${{ steps.tagging.outputs.new_tag }}"
 
   cloudDeploy:
     needs: create-release
