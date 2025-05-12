@@ -12,11 +12,12 @@ env:
   PROJECT_ID: third-diorama-459405-q0
   REGION: northamerica-northeast1
   DELIVERY_PIPELINE_NAME: simple-api-pipeline
-
 jobs:
   create-release:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: write  # Grant write permissions for pushing tags
     outputs:
       releasetag: ${{ steps.release.outputs.new_tag }}
       repotag: ${{ steps.tagging.outputs.new_tag }}
@@ -36,6 +37,7 @@ jobs:
       - name: Reformat tag
         id: release
         run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
+
 
   cloudDeploy:
     needs: create-release
