@@ -12,6 +12,7 @@ env:
   PROJECT_ID: third-diorama-459405-q0
   REGION: northamerica-northeast1
   DELIVERY_PIPELINE_NAME: simple-api-pipeline
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -33,85 +34,3 @@ jobs:
           git tag v1.0.${{ github.run_number }}
           git push origin v1.0.${{ github.run_number }}
           echo "new_tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
-
-      - name: Reformat tag
-        id: release
-        run: echo "new_tag=$(echo ${{ steps.tagging.outputs.new_tag }} | tr '[:upper:]' '[:lower:]' | head -c 40)" >> $GITHUB_OUTPUT
-
-
-  cloudDeploy:
-    needs: create-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: 'write'
-      id-token: 'write'
-    steps:
-      - name: Cloning repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: refs/tags/${{needs.create-release.outputs.repotag}}
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
-
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-
-
-      - name: Configure Docker
-        run: gcloud --quiet auth configure-docker northamerica-northeast1-docker.pkg.dev
-
-
-      - name: Create Cloud Deploy Release
-        run: |
-          gcloud deploy releases create release-${{ needs.create-release.outputs.releasetag }} \
-            --delivery-pipeline=${{ env.DELIVERY_PIPELINE_NAME }} \
-            --region=${{ env.REGION }} \
-            --build-artifacts=artifacts.json \
-            --to-target=dev \
-    
-
-  devsmoketest:
-    uses: ./.github/workflows/reusable-automation-test-workflow.yml
-    name: Dev Smoke Test
-    needs: [create-release, cloudDeploy]
-    with:
-      repotag: ${{needs.create-release.outputs.repotag}}
-      target: '@simple-api'
-      downstream: dev
-
-  finalstatus:
-    name: Success Status Notification
-    needs: [create-release, cloudDeploy, devsmoketest]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify Slack for Dev Smoke Test Failure
-        if: ${{ needs.devsmoketest.outputs.passtest == 'false' }}
-        uses: ravsamhq/notify-slack-action@v2
-        with:
-          status: "failure"
-          notification_title: '*{workflow}* failed deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
-          message_format: 'Failed dev smoke test of release <https://console.cloud.google.com/deploy/delivery-pipelines/${{env.REGION}}/${{env.DELIVERY_PIPELINE_NAME}}/releases/${{env.RELEASE}}/rollouts?${{env.PROJECT_ID}}=&project=${{env.PROJECT_ID}}|${{env.TAG}}>'
-          footer: '<{run_url}|View Run>'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          TAG: ${{needs.create-release.outputs.repotag}}
-          TARGET: dev
-          RELEASE: release-${{ needs.create-release.outputs.releasetag }}
-
-      - name: Notify Slack for CI/CD Completion
-        if: success()
-        uses: ravsamhq/notify-slack-action@v2
-        with:
-          status: ${{ job.status }}
-          notification_title: '*{workflow}* successful deployment of github repo <{repo_url}|{repo}> triggered by <${{ github.event.sender.html_url }}|${{ github.actor }}>'
-          message_format: 'Successful deployment of release <https://console.cloud.google.com/deploy/delivery-pipelines/${{env.REGION}}/${{env.DELIVERY_PIPELINE_NAME}}/releases/release-${{env.RELEASE}}/rollouts?${{env.PROJECT_ID}}=&project=${{env.PROJECT_ID}}|${{env.RELEASE}}>'
-          footer: '<{run_url}|View Run>'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          RELEASE: "${{needs.create-release.outputs.releasetag}}"
