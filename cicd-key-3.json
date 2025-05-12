@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "third-diorama-459405-q0",
+  "private_key_id": "d34f5894efd394e1dd6104fa499b1c56cf24cd7a",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDDpPsnsiqi4Xm7\nb2TUGtUOHzwThA7KTdwtsSxoo55txyOkoFE3DL8RmXMhJeglel+/Gsxx/YWrVXcC\neoBr8ncvOgXIm+RXSGY9ELvMS0pumeB2rUXdIlsmMs9BAzUEUTrZUqAvtVScEVD/\n9c9SJpiPKf5A2KbbtZlUNkYyDA/FfZ4kN6cn29FPujc2OVGUSx78PX7hc3a9Kye4\nZuZZVeve0S+iPU3FzCMWFF9Vy1w26ontSIqG3g6mB7cBir1xb9a0F/G13CZaLbLM\nmT48pzjzFK3O2zYef0fMZhWaGRhAC9yRH7CbFEpUi+Kfy5QhQr9ao/q7PS6e7NGQ\n7NslDv8DAgMBAAECggEAP0t4T8Ll5VVCD2A+BBr8M7nqMzwlltCyu3uW7PGGV2i2\nQNP3AnLWu+hjpWVAoiNhp4+Rdg15udEIFB6yvnmuknJYnarFqHFNVlM8Fp+DIJ4a\nzvpG4IB1cbm9cICLne5ztgxzs4ucKHO3u194p9DByYth7PPKo8kwJlz6v8VEMvVc\nP5t6jXTHv+fi2ZhXdJs2ulCwgUVk0o7k7hzY56ckTxAirqEzvVnpuBfxgZ9//aBN\nrGLEDnnMifArwW3xmP/JvCZ+L276dCxYoBmn0pBYcTHblWAYlTMi+ZRMCWddfv0z\nAJEBaeLFNai4t7O4J5eIrTDSFxe0LE74XYV4lP2LqQKBgQDxwMkpaEtfcqQKZX0a\nvs/kdTegQB+madDqKS0q05xOSCCF7BIZ4So3W1k8CfRehyw0SofcKBNMspbqXZgd\nDBi9TWxY8ZomUylXNhtBpbikSZI9PhoXy1FQvfxSiPj++g8zZgq08xpOiXXZElTB\njwAK3F+IJtVjTn+ZgUR8vFgU6QKBgQDPLJOTIE2z938447/gyGWngFvq4sUcBkBE\n8t6JebX4PPTZIRRuwOEgqwI15sxN1qqrFmkjkfUhneZFgBwNYgiH0zN/iGL83kN0\nAJJCi0EbVF2ieIBgvylBCyAua74HSnVBqpV1CbIRw0yVVCfLKP8qZk50HTmaCjI6\nqD1J8amxCwKBgQDh/4mOjhM4LWGw3mNvp0WNmw7fXlK4LV/CJ7AzwxLyE3dj+uaJ\nDvd6PIlVGTE7VT47vBj59PTl1GZEvi4/qVlPTpulImcqwL966ffdDOFpo+V0HyQh\nbk6cHp9NQQMUygt/zzrfIgxLszFaNkrJj7dIb+9WxobhiTa7+B5gRWpKUQKBgQCk\nerCDS09FhUZFJVQOIyvJqzfOqNFy6WeXFfcl0DJvbf26cO/m6k0SAZLUtnMXjUmc\nYUOB0Px7/v91yDr9SQqaw0wMgXyNY+zLqTR1jldXWkiol+DcbohTMoEPOcz5vtyP\nEN5tuA/e2F3x5IlfWyISSH0a5KT5rgSo2y8liK5/dwKBgEhw1C+nrrKbe7CxfYV1\nAAAx08Ro7vblI/0UOF3E/TcA9qNGCZC3IbTdiJwbik/At21dLzAUtXd29dN0I2wL\nKb2aHIdrdxd0dgAmuYgc29IW5aY1lVRUo9EDaipArZk3iq3fwSzTWjqpJuDpDsw7\nup8pKdKPWiDiC5DEpaPp1KBG\n-----END PRIVATE KEY-----\n",
+  "client_email": "cicd-service-account@third-diorama-459405-q0.iam.gserviceaccount.com",
+  "client_id": "109205160665344931390",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/cicd-service-account%40third-diorama-459405-q0.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
